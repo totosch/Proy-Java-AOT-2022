@@ -1,0 +1,780 @@
+= Shingeki no Kyojin, The Final Season
+
+Rodrigo Schillaci <rodrigoschillaci@hotmail.com>; Santiago Schuckmann <schuckmannsantiago@gmail.com>; Mauro Ricceli <mauroricceli@gmail.com>
+v1.0, {28-05-22}
+
+image::https://i.imgur.com/FQBuKJm.png[]
+
+== Introduccion: 
+Combate como Mikasa Ackermann para derrotar a los Kyojines que estan invadiendo la capital de la ciudad imperial Mitras y derrotar a los kyojines para poder volver a reunirse con Eren.
+
+== Descripcion:
+El juego se desarrolla en un entorno de 800x600, con 4 edificios y 1 arbol de forma simetrica tal que quedan 3 calles verticales y 3 horizontales con el arbol en la calle central.
+
+Al comenzar el juego, obtendremos el control de Mikasa, y los Kyojines apareceran de manera random en lugares lejanos a Mikasa para que no se spawneen sobre ella. Los Kyojines automaticamente avanzaran en la direccion que Mikasa se encuentre, para poder eliminarla.
+
+El movimiento de Mikasa es de tipo "tanque", donde la tecla "a" y "d" del teclado rotaran hacia donde este mirando mikasa, y la tecla "w" hara que ella avance en esa direccion.
+
+- En 4 posiciones predeterminadas del mapa apareceran distintos power-ups, los cuales dan distintos efectos a Mikasa:
+
+ * Power up velocidad: Aumenta la velocidad de Mikasa por un corto periodo de tiempo.
+ * Power up municion: Otorga 10 espadas de municion a Mikasa.
+ * Power up jeringa: Inyecta el suero de titan de Ymir a Mikasa, transformandola en Titan y cambiando su municion de espadas a piedras gigantes.
+El efecto termina al entrar en contacto con otro Titan, eliminandolo y volviendo a su forma humana.
+
+El juego termina cuando un Kyojin entra en contacto con Mikasa. Al perder, la pantalla de gameover aparecera en pantalla, y se podra presionar la tecla enter para reiniciar el juego y volver a intentar.
+
+== Dificultades:
+- Entre las difultades principales que encontramos a lo largo del desarrollo podemos destacar
+
+ * Colisiones de Mikasa
+ * Colisiones de Kyojines entre ellos
+ * Spawn random de Power ups
+ * Spawn random de Kyojines
+ 
+
+== Implementacion:
+
+=== Class Mikasa
+
+[source, java]
+
+ public class Mikasa {
+	private double alto;
+	private double altoTitan;
+	private double ancho;
+	private double x;
+	private double y;
+	private double velocidad;
+	private double angulo;
+	private Image imgMikasa;
+	private Image imgMikasaTitan;
+	private Image flechaDireccion;
+ 
+
+[source, java]
+
+public Mikasa(double x, double y, double velocidad) {
+		this.x = x;
+		this.y = y;
+		this.alto = 40;
+		this.altoTitan = alto * 2;
+		this.ancho = 20;
+		this.velocidad = velocidad;
+		this.angulo = Math.PI * 2;
+		this.imgMikasa = Herramientas.cargarImagen("mikasaImage.png");
+		this.imgMikasaTitan = Herramientas.cargarImagen("kyojin.png");
+		this.flechaDireccion = Herramientas.cargarImagen("flechaDireccion.png");
+
+El constructor de Mikasa.
+
+[source, java]
+
+public void dibujar(Entorno entorno) {
+	if (soyMikasaTitan) {
+		entorno.dibujarImagen(flechaDireccion, x, y, angulo, 0.15);
+		entorno.dibujarImagen(imgMikasaTitan, x, y, 0, 0.3);
+	} else {
+		entorno.dibujarImagen(flechaDireccion, x, y, angulo, 0.1);
+		entorno.dibujarImagen(imgMikasa, x, y, 0, 0.23);
+	}
+}
+
+Mikasa se dibuja de una forma u otra según su modoTitan. Esta función determina en que modo está y dibuja según lo determinado.
+
+[source, java]
+ 
+private boolean hayColisionMikasaConEdificio(Obstaculo obstaculo, double direccionX, double direccionY) {
+	if (!soyMikasaTitan) {
+		double obstaculoX = obstaculo.getX() - (obstaculo.getAncho() / 2) + ancho / 2;
+		double obstaculoY = obstaculo.getY() - (obstaculo.getAlto() / 2) + alto / 2;
+		return direccionX < obstaculoX + obstaculo.getAncho() && obstaculoX < direccionX + ancho
+				&& direccionY < obstaculoY + obstaculo.getAlto() && obstaculoY < direccionY + alto;
+	} else {
+		double obstaculoX = obstaculo.getX() - (obstaculo.getAncho() / 2) + ancho / 2;
+		double obstaculoY = obstaculo.getY() - (obstaculo.getAlto() / 2) + alto / 2;
+		return direccionX < obstaculoX + obstaculo.getAncho() && obstaculoX < direccionX + ancho
+				&& direccionY - altoTitan / 4 < obstaculoY + obstaculo.getAlto()
+				&& obstaculoY < direccionY + altoTitan / 4 + alto;
+	}
+}
+
+private boolean hayColisionesMikasaConEdificios(Obstaculo[] edificios, double x, double y) {
+	for (int i = 0; i < edificios.length; i++) {
+		if (hayColisionMikasaConEdificio(edificios[i], x, y)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+Para las colisiones de Mikasa con el entorno, no tuvimos mayores problemas, pero a la hora de restringir su movimiento para no atravesar los edificios o el arbol central de la ciudad, esta funcion nos parecio la mejor opcion, donde el obstaculo get x o get y nos da el punto medio donde spawnean los edificios, por lo que necesitariamos mover la hitbox la mitad hacia atras en cada direccion, tanto x como y, y luego, como lo mismo pasara con Mikasa, tambien dividimos su ancho o alto por 2 para que las hitbox coincidan.
+
+[source, java]
+ 
+public boolean hayColisionPowerUp(PowerUp powerUp) {
+	if (!soyMikasaTitan) {
+		double powerUpX = powerUp.getX() - (powerUp.getAncho() / 2) + ancho / 2;
+		double powerUpY = powerUp.getY() - (powerUp.getAlto() / 2) + alto / 2;
+		return x < powerUpX + powerUp.getAncho() && powerUpX < x + ancho && y < powerUpY + powerUp.getAlto()
+				&& powerUpY < y + alto;
+	} else {
+		double powerUpX = powerUp.getX() - (powerUp.getAncho() / 2) + ancho / 2;
+		double powerUpY = powerUp.getY() - (powerUp.getAlto() / 2) + alto / 2;
+		return x < powerUpX + powerUp.getAncho() && powerUpX < x + ancho
+				&& y - altoTitan / 4 < powerUpY + powerUp.getAlto() && powerUpY < y + altoTitan / 4 + alto;
+	}
+}
+
+
+[source, java]
+ 
+private boolean hayColisionConKyojin(Kyojin kyojin) {
+	if (!soyMikasaTitan) {
+		double kyojinX = kyojin.getX() - (kyojin.getAncho() / 2) + ancho / 2;
+		double kyojinY = kyojin.getY() - (kyojin.getAlto() / 2) + alto / 2;
+		return x < kyojinX + kyojin.getAncho() && kyojinX < x + ancho && y < kyojinY + kyojin.getAlto()
+				&& kyojinY < y + alto;
+	} else {
+		double kyojinX = kyojin.getX() - (kyojin.getAncho() / 2) + ancho / 2;
+		double kyojinY = kyojin.getY() - (kyojin.getAlto() / 2) + alto / 2;
+		return x < kyojinX + kyojin.getAncho() && kyojinX < x + ancho
+				&& y - altoTitan / 4 < kyojinY + kyojin.getAlto() && kyojinY < y + altoTitan / 4 + alto;
+	}
+}
+
+[source, java]
+ 
+public boolean estoyColisionandoConAlgunKyojin(Kyojin[] kyojines) {
+	for (int i = 0; i < kyojines.length; i++) {
+		if (kyojines[i] != null) {
+			if (hayColisionConKyojin(kyojines[i])) {
+				kyojines[i] = null;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+Las otras colisiones de Mikasa estan hechas de manera similar, lo cual haber llegado a esa primera funcion en un principio nos facilito mucho el trabajo y nos hizo comprender mejor como y sobre que estabamos trabajando en cada momento, lo cual nos facilito mucho a la hora de corregir errores o querer agregar alguna funcionalidad.
+
+[source, java]
+
+public void rotarHaciaIzquierda(Entorno entorno) {
+	angulo = angulo - 0.06;
+	if (!soyMikasaTitan) {
+		entorno.dibujarImagen(imgMikasa, x, y, 0, 0.23);
+	}
+}
+
+[source, java]
+
+public void rotarHaciaDerecha(Entorno entorno) {
+	angulo = angulo + 0.06;
+	if (!soyMikasaTitan) {
+		entorno.dibujarImagen(imgMikasa, x, y, 0, 0.23);
+	}
+}
+
+[source, java]
+
+public void moverHaciaAdelante() {
+	x += Math.cos(angulo) * velocidad;
+	y += Math.sin(angulo) * velocidad;
+}
+
+Mikasa rota su angulo de movimiento segun la tecla que este presionando el jugador y avanza en ese angulo cuando se presiona la W. Al cambiar el movimiento en lineas rectas a un movimiento en angulos, una vez que logramos pensar como escribir el codigo y como hacer las cuentas necesarias hubo muchas funciones que se simplificaron. 
+
+[source, java]
+
+public void choqueObstaculo(Entorno entorno, Obstaculo[] edificios, PowerUp powerUp) {
+	if (hayColisionesMikasaConEdificios(edificios, x, y)) {
+		angulo = angulo - 180;
+		return;
+	}
+	if (y < alto / 2 || y > entorno.alto() - alto / 2) {
+		angulo = angulo * -1;
+		return;
+	}
+	if (x > entorno.ancho() - ancho / 2 || x < ancho / 2) {
+		angulo = angulo - 180;
+		return;
+	}
+}
+
+[source, java]
+
+public Disparo getDisparo() {
+	Disparo nuevo = null;
+	if (soyMikasaTitan == false) {	
+		nuevo = new Disparo(x, y, angulo, false);
+	} else {
+		nuevo = new Disparo(x, y, angulo, true);
+	}
+	return nuevo;
+}
+
+Mikasa crea el disparo y devuelve el objeto a la clase juego.
+
+[source, java]
+
+public void acelerar() {
+	if (modoTurbo == false) {
+		velocidad += 1;
+		modoTurbo = true;
+	} else {
+		modoTurbo = false;
+		velocidad -= 1;
+	}
+}
+
+Mikasa aumenta su velocidad durante un periodo de tiempo en el que esta funcion es llamada.
+
+=== Class Kyojin
+
+[source, java]
+
+public class Kyojin {	
+	private double x;
+	private double y;
+	private double ancho;
+	private double alto;
+	private double velocidad;
+	private int vidas;
+	private Image kyojinImage;
+	private Image kyojinImage2;
+	private char direccion;
+	private int contadorParaEvitarSpawnsRepetidos;
+}
+
+Los Kyojins cuentan con su posición el eje vertical y horizontal, su ancho y alto y su velocidad, al igual que Mikasa. Además, las vidas diferencian a un Kyojin boss de uno común. Luego, las imagenes respectivas dependiendo de donde está mirando y la imagen del Kyojin boss. Finalmente, dos char que nos indican la direccion y si el kyojin es boss o normal.
+
+[source, java]
+
+	public Kyojin (double x, double y, double velocidad) {
+		this.ancho = 40;
+		this.alto = 60;
+		this.x = x;
+		this.y = y;
+		this.velocidad = velocidad;  
+		this.vidas = 1;
+		this.contadorParaEvitarSpawnsRepetidos = 0;
+		this.kyojinImage = Herramientas.cargarImagen("kyojinImage.png");
+		this.kyojinImage2 = Herramientas.cargarImagen("kyojinImage2.png");
+	}
+
+El constructor de un Kyojin
+
+[source, java]
+ 
+    private boolean hayColisionEntreUnKyojinYObstaculo(Obstaculo obstaculo, double direccionX, double direccionY) {
+		double obstaculoX = obstaculo.getX() - (obstaculo.getAncho() / 2) + ancho / 2;
+		double obstaculoY = obstaculo.getY() - (obstaculo.getAlto() / 2) + alto / 2;
+		return  direccionX < obstaculoX + obstaculo.getAncho() && 
+				obstaculoX < direccionX + ancho &&
+				direccionY < obstaculoY + obstaculo.getAlto() &&
+				obstaculoY < direccionY + alto; 				
+		}
+ 
+
+Esta función devuelve un boolean que nos indica si hay colisiones o no las hay con un obstaculo. Reutilizamos codigo para las colisiones de todo tipo, y los parametros de direccion indican hacía adonde se moverían los kyojines, ya que estan en constante movimiento. De ese mismo modo, son estas direcciones las cuales van a dictar para donde el kyojin no se podrá mover cuando colisione contra los obstaculos.
+
+[source, java]
+ 
+    private boolean hayColisionEntreUnKyojinYOtro (Kyojin kyojin, double direccionX, double direccionY) {
+		double xKyojines = kyojin.getX(); 
+		double yKyojines = kyojin.getY();
+		return direccionX + (kyojin.getAncho() / 2) > xKyojines - (kyojin.getAncho() / 2) &&
+			   direccionX - (kyojin.getAncho() / 2) < xKyojines + (kyojin.getAncho() / 2) &&
+			   direccionY + (kyojin.getAlto() / 2) > yKyojines - (kyojin.getAlto() / 2) &&
+			   direccionY - (kyojin.getAlto() / 2) < yKyojines + (kyojin.getAlto() / 2);
+	}
+	
+Siguiendo la misma temática, está función devuelve un boolean que indica si hay colision entre un kyojin y otro. La direccion le indica a la función hacía donde se estan desplazando los kyojines, ya que estan en constante movimiento y logramos resolver este inconveniente de esta manera.
+
+[source, java]
+
+	private boolean hayColisionesEntreKyojinesYObstaculos(Obstaculo[] edificios, double x, double y) {
+		for (int i = 0; i < edificios.length; i++) {
+				if (hayColisionEntreUnKyojinYObstaculo(edificios[i], x, y)) {
+					return true;		
+			} 
+		}
+		return false;
+	}
+
+[source, java]
+ 
+	private boolean hayColisionesEntreKyojines (Kyojin[] kyojines, double x, double y) {
+		for (int i = 0; i < kyojines.length; i++) {
+			if (kyojines[i] != null && kyojines[i] != this) {
+				if (hayColisionEntreUnKyojinYOtro(kyojines[i], x, y)) {
+					return true;
+				}		
+			}
+		}
+		return false;
+	}
+
+Estas dos funciones, muy similares, nos ayudan a pasar un codigo más limpio hacía siguiendoAMikasaPor{algunaDireccion} ya que con la implementación de un if y este booleano podemos devolver el valor vacío que haría que el kyojin deje de moverse hacía la dirección contra la que esta colisionando.
+
+
+[source, java]
+ 
+	private void siguiendoAMikasaParaArriba (Entorno entorno, double mikasaY, Obstaculo[] obstaculos, Kyojin[] kyojines) {
+		if (hayColisionesEntreKyojinesYObstaculos(obstaculos, x, y - velocidad)) {
+			return;
+		}
+		if (hayColisionesEntreKyojines (kyojines, x, y - velocidad)) {
+			return;
+		}		
+		if (mikasaY < y) {
+			vaHaciaArriba();
+		}
+	}
+ 
+Esta funcion esta implementada de manera similar para todas las direcciones. Dependiendo de donde se encuentre mikasa en el eje que le interesa a cada dirección (arriba, abajo: Y, izquierda, derecha: X), los kyojines van a moverse automaticamente hacía su posición actual. Además, la funcion recibira la posicion Y de Mikasa y la X de Mikasa dependiendo de las direcciones que he marcado anteriormente.
+El movimiento de los enemigos de Mikasa se ve limitado por la existencia tanto de un entorno, de los obstaculos como de sus propios compañeros o Kyojins. Por lo que, las funciones anteriores ayudan a determinar si el movimiento hacía la direccion, en este caso y - velocidad, es posible o no mediante la veracidad de las colisiones con los diferentes elementos.
+
+[source, java]
+
+	public void siguiendoAMikasa(Entorno entorno, Mikasa mikasa, Obstaculo[] obstaculos, Kyojin[] kyojines) {
+		siguiendoAMikasaParaArriba(entorno, mikasa, obstaculos, kyojines);
+		siguiendoAMikasaParaDerecha(entorno, mikasa, obstaculos, kyojines);
+		siguiendoAMikasaParaAbajo(entorno, mikasa, obstaculos, kyojines);
+		siguiendoAMikasaParaIzquierda(entorno, mikasa, obstaculos, kyojines);
+	}
+
+Para cerrar con la clase Kyojin, hemos elegido pasar solo una función a Juego que se encargue de determinar el movimiento de los kyojines en general, en vez de pasar las 4 funciones hacía la funcionalidad principal del juego y de esta manera desarrollar un código mas legible. Al principio, le habíamos pasado Mikasa a esta función pero decidimos que era innecesario y esta función ahora solamente recibe las coordenadas de donde está Mikasa.
+ 
+=== Class disparo
+
+[source, java]
+
+public class Disparo {
+	private double alto;
+	private double ancho;
+	private double x;
+	private double y;
+	private double velocidad;
+	private Color color;
+	private boolean tipo;
+	private double angulo;
+	private Image imgSword;
+	private Image imgRock;
+	private Clip colisionObstaculo;
+	private Clip colisionKyojin;
+
+El disparo al ser una representación de un obstáculo "móvil" posee su propia velocidad y dirección. Además posee imágenes que lo representan a vista del usuario, teniendo dos variantes dependiendo de la transformación de Mikasa.
+
+[source, java]
+
+public Disparo(double x, double y, double angulo) {
+		this.alto = 20;
+		this.ancho = 3;
+		this.x = x;
+		this.y = y;
+		this.velocidad = 3;
+		this.color = color.RED;
+		this.angulo = angulo;
+		this.tipo = tipo;
+		this.imgSword = Herramientas.cargarImagen("mikasaSword1.png");
+		this.imgRock = Herramientas.cargarImagen("rockShoot.png");
+		this.colisionObstaculo = Herramientas.cargarSonido("espadaColisionObstaculo.wav");
+		this.colisionKyojin = Herramientas.cargarSonido("espadaColisionKyojin.wav");
+	}
+
+Constructor de disparo.
+
+[source, java]
+
+public void dibujar(Entorno e) {
+		if(tipo == false) {
+			e.dibujarImagen(imgSword, x, y, angulo - 5.5, 0.09);
+		} else {
+			e.dibujarImagen(imgRock, x, y, angulo - 5.5, 0.09);
+		}	
+	}
+
+Como se mencionó antes, el disparo se representa de dos formas distintas. Como una espada si Mikasa está en su forma normal, o como una roca si Mikasa consumió el suero. La función determina que tiene que dibujar segun el tipo que se le asignó al crearse.
+
+[source, java]
+
+public void meDisparo() {
+		x += Math.cos(angulo)*velocidad;
+		y += Math.sin(angulo)*velocidad;
+	}
+
+El disparo posee su dirección propia al momento de crearse, y gracias a esta función y la evaluación que realiza cada uno se desplazará en la dirección correspondiente. 
+
+[source, java]
+
+public boolean estoyColisionandoEntorno(Entorno entorno) {
+		if (x >= entorno.ancho() || x <= 0 || y <= 0 || y >= entorno.alto()) {
+			return true;
+		}
+		return false;
+	}
+
+[source, java]
+
+public boolean estoyColisionandoObstaculo(Obstaculo obstaculos) {	
+		if ((x + ancho/2 >= obstaculos.getX() - obstaculos.getAncho()/2) && (x - ancho/2 <= obstaculos.getX() + obstaculos.getAncho()/2) && (y - alto/2 <= obstaculos.getY() + 				obstaculos.getAlto()/2) && (y + alto/2 >= obstaculos.getY() - obstaculos.getAlto()/2)){	
+			colisionObstaculo.start();
+			return true;
+		}
+		return false;
+	}
+
+[source, java]
+
+public boolean estoyColisionandoKyojin(Kyojin kyojines) { {	
+	if ((x + ancho/2 >= kyojines.getX() - kyojines.getAncho()/2) && (x - ancho/2 <= kyojines.getX() + kyojines.getAncho()/2) && (y - alto/2 <= kyojines.getY() + kyojines.				getAlto()/2) && (y + alto/2 >= kyojines.getY() - kyojines.getAlto()/2)) {
+		colisionKyojin.start();
+		return true;
+		}	
+	}	
+	return false;
+}
+
+public boolean colisionObstaculo(Obstaculo[] edificios) {
+	for (Obstaculo o : edificios) {
+		if(estoyColisionandoObstaculo(o) == true) {
+			return true;
+		}
+	}
+	return false;
+}
+
+public boolean colisionKyojin(Kyojin[] kyojines) {
+	for(int j = 0; j <= kyojines.length-1; j++) {
+		if (kyojines[j] != null) {
+			if(estoyColisionandoKyojin(kyojines[j]) == true) {
+				kyojines[j] = null;
+				return true;	
+			}	
+		}
+	}
+	return false;
+}
+
+Todas las colisiones del disparo siguen una misma idea. Se recorren los arrays de lo que estemos evaluando junto a las posiciones de los extremos del disparo y se determina gracias a unas cuentas si se esta colisionando o no. Se devuelve un boolean.
+
+=== Class obstaculo
+
+[source, java]
+
+public class Obstaculo {
+	private double ancho;
+	private double alto;
+	private double x;
+	private double y;
+	private Color color;	
+	private int tipo;
+	private Image imgHouse1;
+	private Image imgHouse2;
+	private Image imgHouse3;
+	private Image imgArbol;
+
+El obstáculo al ser un objeto fijo en el juego solo posee sus dimensiones y su posicion. Además posee un tipo para diferenciarse de los distintos obstáculos del juego en la lista ordenada, y tienen distintas imágenes para representarlo.
+
+[source, java]
+
+public Obstaculo(double x, double y, int tipo) {
+		this.ancho = 160;
+		this.alto = 120;
+		this.x = x;
+		this.y = y;
+		this.color = color.PINK;
+		this.tipo = tipo;
+		this.imgHouse1 = Herramientas.cargarImagen("house.png");
+		this.imgHouse2 = Herramientas.cargarImagen("house.png");
+		this.imgHouse3 = Herramientas.cargarImagen("house.png");
+	}
+
+El constructor de las casas que se ven dentro del juego.
+
+[source, java]
+
+public Obstaculo(double x, double y, double ancho, double alto, int tipo) {
+		this.ancho = ancho;
+		this.alto = alto;
+		this.x = x;
+		this.y = y;
+		this.color = color.GREEN;
+		this.tipo = tipo;
+		this.imgArbol = Herramientas.cargarImagen("arbol.png");
+	}
+
+El constructor del árbol en el centro del juego.
+
+[source, java]
+
+public void dibujar(Entorno entorno) {
+		if(tipo == 1) {
+			entorno.dibujarImagen(imgArbol, x, y ,0, 0.07);
+		} else {
+			entorno.dibujarImagen(imgHouse2, x, y ,0, 1);
+		}
+	}
+
+La función que representa a vista del usuario los objetos, utilizando el tipo para diferenciarlos.
+
+===Class Juego
+
+[source, java]
+public class Juego extends InterfaceJuego {
+	private Entorno entorno;
+	private Mikasa mikasa;
+	private Kyojin[] kyojines;
+	private int cantidadDeKyojinesAsesinados;
+	private boolean invulnerabilidadDeMikasa;
+	private PowerUp powerUp;
+	private Random random;
+	private Obstaculo[] obstaculos;
+	private Disparo disparo;
+	private int temporizador;
+	private int temporizadorVelocidad;
+	private boolean playMusica;
+	private boolean standby;
+	private int cantidadDeMuniciones;
+	private int cantidadDisparosRealizados;
+	
+[source, java]
+	public Juego() {
+		this.entorno = new Entorno(this, "Mikasa", 800, 600);		
+		fondo = Herramientas.cargarImagen("fondo.png");	
+		obstaculos = new Obstaculo[5];
+		obstaculos[0] = new Obstaculo((entorno.ancho() / 5) * 2 - ((entorno.ancho() / 10)),
+				((entorno.alto() / 5) * 2) - (entorno.alto() / 10), 1);
+		obstaculos[1] = new Obstaculo((entorno.ancho() / 5) * 4 - ((entorno.ancho() / 10)),
+				((entorno.alto() / 5) * 2) - (entorno.alto() / 10), 1);
+		obstaculos[2] = new Obstaculo((entorno.ancho() / 5) * 2 - ((entorno.ancho() / 10)),
+				((entorno.alto() / 5) * 4) - (entorno.alto() / 10), 1);
+		obstaculos[3] = new Obstaculo((entorno.ancho() / 5) * 4 - ((entorno.ancho() / 10)),
+				((entorno.alto() / 5) * 4) - (entorno.alto() / 10), 1);		
+		obstaculos[4] = new Obstaculo(entorno.ancho() / 2, entorno.alto() / 2 - 15 , 20, 50, 4);
+		cantidadDeMuniciones = 15;
+		cantidadDisparosRealizados = 0;	
+		random = new Random();
+		mikasa = new Mikasa(entorno.ancho() / 2, entorno.alto() / 2 + 30, 1.5);
+		kyojines = new Kyojin[5];
+		cantidadDeKyojinesAsesinados = 0;
+		invulnerabilidadDeMikasa = false;
+		powerUp = null;
+		disparo = null;	
+		temporizador = 0;
+		this.entorno.iniciar();	
+
+Asignamos los valores necesarios para que el juego funcione.
+
+[source, java]
+public void tick() {
+if (!playMusica && !standby) {
+	musica.start();
+	playMusica = true;
+	}
+if (mikasa == null) {
+	muerteMikasa.start();
+	musica.stop();
+	standby = true;
+	entorno.dibujarImagen(gameoverScreen, entorno.ancho() / 2, entorno.alto() / 2, 0);
+	if (entorno.sePresiono(entorno.TECLA_ENTER)) {
+		mikasa = new Mikasa(entorno.ancho() / 2, entorno.alto() / 2 + 30, 1.5);
+		kyojines = new Kyojin[5];		
+		cantidadDisparosRealizados = 0;
+		cantidadDeKyojinesAsesinados = 0;
+		temporizador = 0;
+		powerUp = null;								
+		muerteMikasa.stop();
+		standby = false;
+	}
+	return;
+}
+
+Ejecutada cuando muere Mikasa (se pierde el juego), si se presiona enter se reinicia el juego.
+
+[source, java]
+if (mikasa != null && cantidadDeKyojinesAsesinados == 15) {
+	winTheme.start();
+	musica.stop();
+	entorno.dibujarImagen(winScreen, entorno.ancho() / 2, entorno.alto() / 2, 0, 0.5);
+	standby = true;
+	if (entorno.sePresiono(entorno.TECLA_ENTER)) {
+		mikasa = new Mikasa(entorno.ancho() / 2, entorno.alto() / 2 + 30, 1.5);
+		kyojines = new Kyojin[5];		
+		cantidadDisparosRealizados = 0;
+		cantidadDeKyojinesAsesinados = 0;
+		temporizador = 0;
+		powerUp = null;
+		winTheme.stop();
+		standby = false;
+	}
+	return;			
+}
+
+Ejecutada cuando Mikasa gana el juego, si se presiona enter se reinicia el juego.
+
+[source, java]
+entorno.dibujarImagen(fondo, entorno.ancho() / 2, entorno.alto() / 2, 0);	
+for (Obstaculo obstaculo: obstaculos) {
+	obstaculo.dibujar(entorno);
+}
+mikasa.dibujar(entorno);
+
+Dibujamos obstaculos, el fondo del juego y a mikasa.
+
+[source, java]
+if (temporizador != 0 && temporizador % 750 == 0 && powerUp == null) {
+	int[] posicionArribaYAbajo = { 1, 9 };
+	int eleccionAleatoriaPowerUp = random.nextInt(2);
+	int yPowerUp = 60 * posicionArribaYAbajo[eleccionAleatoriaPowerUp];
+	int xPowerUp = 0;
+	xPowerUp = 80 + random.nextInt(440);
+	int tipoPowerUp = random.nextInt(3);
+	powerUp = new PowerUp(xPowerUp, yPowerUp, tipoPowerUp);
+}
+
+Creamos los powerups en sus respectivas posiciones random, con un tipo random cada cierto tiempo.
+
+[source, java]
+if (powerUp != null) {
+	powerUp.dibujar(entorno);
+}
+
+Dibujamos el powerUp.
+
+[source, java]
+if (powerUp != null && mikasa.hayColisionPowerUp(powerUp)) {
+	if (powerUp.getTipo() == 1) {
+		quieroRecargar = true;
+	} else if (powerUp.getTipo() == 2) {
+		mikasa.acelerar();
+	} else {
+		mikasa.convertirATitan();
+	}
+	powerUp = null;
+}
+
+Utilizada cuando mikasa colisiona el powerUp, determinando que tipo de powerUp esta tocando y que 		debe ocurrir.
+
+[source, java]
+if (mikasa.getModoTurbo() == true) {
+	temporizadorVelocidad += 1;
+	if (temporizadorVelocidad % 350 == 0) {
+		mikasa.acelerar();
+		temporizadorVelocidad = 0;			
+	}
+}
+
+Utilizada cuando mikasa toca el powerUp de velocidad extra, poniendose en modoTurbo y aumentando su 	velocidad durante un cierto periodo de tiempo.
+
+[source, java]
+if (temporizador == 0) {
+	for (int i = 0; i < 5; i++) {
+		kyojines[i] = new Kyojin(100 + 150 * i, 90 * i, 1);
+	}
+}
+
+Creamos los Kyojines.
+
+[source, java]
+for (int i = 0; i < kyojines.length; i++) {
+	if (kyojines[i] != null) {
+		kyojines[i].dibujar(entorno);
+		kyojines[i].siguiendoAMikasa(entorno, mikasa, obstaculos, kyojines);
+	}		
+	if (kyojines[i] == null) {
+		for (int j = 0; j < kyojines.length; j++) {
+			if (kyojines[j] != null && temporizador % 50 == 0) {
+				kyojines[i] = kyojines[j].spawnearKyojin(mikasa, entorno);
+			}
+		}
+	}
+	if (cantidadDeKyojinesAsesinados == 15) {
+		kyojines[i] = null;
+	}
+}
+
+Recorremos el array de Kyojines para dibujarlos y que persigan a Mikasa. Si alguno de los Kyojines es nulo, recorre el array de vuelta buscando alguno que no sea nulo para llamar al metodo spawnearKyojin desde cualquiera de los Kyojines no nulos. 
+
+[source, java]
+if (invulnerabilidadDeMikasa == true) {
+	if (mikasa.estoyColisionandoConAlgunKyojin(kyojines)) {
+		invulnerabilidadDeMikasa = false;
+		mikasa.involucionarAMikasaNormal();
+		cantidadDeKyojinesAsesinados++;
+	}	
+}
+
+[source, java]
+if (entorno.estaPresionada('a')) {
+	mikasa.rotarHaciaIzquierda(entorno);
+}
+if (entorno.estaPresionada('d')) {
+	mikasa.rotarHaciaDerecha(entorno);
+}
+if (entorno.estaPresionada('w')) {
+	mikasa.moverHaciaAdelante();
+	mikasa.choqueObstaculo(entorno, obstaculos, powerUp);
+}
+
+Movimiento de Mikasa
+	
+[source, java]
+if (entorno.sePresiono(entorno.TECLA_ESPACIO) && disparo == null) {
+	if (cantidadDisparosRealizados < cantidadDeMuniciones ) {
+		disparo = mikasa.getDisparo();
+		dispararEspada.loop(1);
+		cantidadDisparosRealizados++;
+	}	
+}
+
+Creamos el disparo al apretar la tecla espacio.
+
+[source, java]
+if (disparo != null) {
+	disparo.dibujar(entorno);
+	disparo.meDisparo();	
+	if (disparo.estoyColisionandoEntorno(entorno)) {
+			disparo = null;
+	}		
+	if (disparo != null) {
+		if(disparo.colisionObstaculo(obstaculos)) {
+			disparo = null;	
+		}
+	}	
+	if (disparo != null) {
+		if(disparo.colisionKyojin(kyojines) == true) {
+			cantidadDeKyojinesAsesinados++;
+			disparo = null;
+		}
+	}
+}
+
+Dibujamos, movemos y analizamos colisiones del disparo con distintos objetos, nulificandolo en la 		ocasion en que colisionen.
+
+[source, java]
+if (quieroRecargar == true) {
+	if (cantidadDisparosRealizados < 5) {
+		cantidadDisparosRealizados = 0;
+	} else {
+		cantidadDisparosRealizados = cantidadDisparosRealizados - 5;
+	}
+	quieroRecargar = false;
+	recargar.start();
+}
+Se utiliza cuando Mikasa toca el powerUp, dandole mas balas.
+
+[source, java]
+if (mikasa != null && mikasa.estoyColisionandoConAlgunKyojin(kyojines)) {
+	mikasa = null;
+}
+Cuando Mikasa colisiona con algun Kyojin y muere, se nulifica.		
+
+== Conclusion:
+
+Como equipo, estamos contentos con el trabajo que realizamos, tuvimos una buena sinergia y siempre hubo un buen ambiente entre intercambio de opiniones. No dudamos en ningún momento en compartir nuestras dudas con nuestros compañeros y charlarlas siempre que podíamos, tanto para escuchar nuestros propios pensamientos como para recibir una crítica o recomendación hacía nuestra lógica o intento de implementación. Estos intercambios nos ayudaron a realizar el trabajo de manera ordenada y completa.
+
+Tuvimos inconvenientes con la comprensión de las consignas en un principio, pero al tener que corregir nuestros errores comprendimos cual era el objetivo del trabajo práctico y cambiamos nuestro enfoque hacía el desarrollo de un código limpio y eficiente, que sea una demostración de lo que hemos aprendido en la materia Programación 1. 
