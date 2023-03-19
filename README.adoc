@@ -6,7 +6,7 @@ v1.0, {28-05-22}
 image::https://i.imgur.com/FQBuKJm.png[]
 
 == Introduccion: 
-Combate como Mikasa Ackermann para derrotar a los Kyojines que estan invadiendo la capital de la ciudad imperial Mitras y derrotar a los kyojines para poder volver a reunirse con Eren.
+Ayuda a Mikasa Ackermann a combatir los Kyojines que estan invadiendo la capital de la ciudad imperial Mitras para volver a reunirse con Eren!
 
 == Descripcion:
 El juego se desarrolla en un entorno de 800x600, con 4 edificios y 1 arbol de forma simetrica tal que quedan 3 calles verticales y 3 horizontales con el arbol en la calle central.
